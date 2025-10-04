@@ -8,6 +8,14 @@ from typing import Dict, Any
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+VALIDATION_SCHEMA = {
+    'user_id': {'type': int, 'required': True, 'min_value': 1},
+    'email': {'type': str, 'required': True, 'pattern': r'^[^@]+@[^@]+\.[^@]+$'},  # Basic email regex
+    'age': {'type': int, 'required': False, 'min_value': 0, 'max_value': 120},
+    'signup_date': {'type': 'datetime', 'required': True},
+    'score': {'type': float, 'required': False, 'min_value': 0.0, 'max_value': 100.0}
+}
+
 class DataCleaningPipeline:
     def __init__(self, schema: Dict[str, Any]):
         self.schema = schema
