@@ -49,12 +49,13 @@ if uploaded_file is not None:
                 st.warning(error)
 
         # Download
-        csv = cleaned_df.to_csv(index=False)
-        st.download_button(
-            label="💾 Download Cleaned Excel",
-            data=csv,
-            file_name="cleaned_data.csv",  # Or use to_excel for .xlsx
-            mime="text/csv"
+        import io
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            cleaned_df.to_excel(writer, index=False)
+            output.seek(0)
+            data = output.read()
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", file_name="cleaned_data.xlsx
         )
 
         # Optional: Show full cleaned data
