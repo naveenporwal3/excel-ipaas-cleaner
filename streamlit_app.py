@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import io  # Added for Excel export
 from excel_cleaner import DataCleaningPipeline, VALIDATION_SCHEMA  # Import from your previous file
 
 st.set_page_config(page_title="Custom iPaaS - Excel Cleaner", layout="wide")
@@ -48,14 +49,17 @@ if uploaded_file is not None:
             for error in pipeline.errors:
                 st.warning(error)
 
-        # Download
-        import io
+        # Download as Excel (fixed version)
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine='openpyxl') as writer:
             cleaned_df.to_excel(writer, index=False)
-            output.seek(0)
-            data = output.read()
-            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", file_name="cleaned_data.xlsx
+        output.seek(0)
+        data = output.read()
+        st.download_button(
+            label="💾 Download Cleaned Excel",
+            data=data,
+            file_name="cleaned_data.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 
         # Optional: Show full cleaned data
