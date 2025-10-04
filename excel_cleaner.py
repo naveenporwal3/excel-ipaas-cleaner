@@ -9,11 +9,10 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 VALIDATION_SCHEMA = {
-    'user_id': {'type': int, 'required': True, 'min_value': 1},
+    'Name': {'type': str, 'required': True},
+    'age': {'type': int, 'required': False, 'min_value': 0, 'max_value': 120, 'fix_negative': True},
     'email': {'type': str, 'required': True, 'pattern': r'^[^@]+@[^@]+\.[^@]+$'},  # Basic email regex
-    'age': {'type': int, 'required': False, 'min_value': 0, 'max_value': 120},
-    'signup_date': {'type': 'datetime', 'required': True},
-    'score': {'type': float, 'required': False, 'min_value': 0.0, 'max_value': 100.0}
+    'city': {'type': str, 'required': False}
 }
 
 class DataCleaningPipeline:
@@ -28,12 +27,22 @@ class DataCleaningPipeline:
         """Main pipeline: Handle missing, types, constraints, outliers."""
         self.total_rows = len(df)
         self.logger.info(f"Starting pipeline with {self.total_rows} rows")
+        df = self._trim_strings(df)
         df = self._handle_missing_values(df)
         df = self._validate_data_types(df)
+        df = self._fix_common_issues(df)
         df = self._apply_constraints(df)
         df = self._remove_outliers(df)
         self.cleaned_rows = len(df)
         self._generate_report()
+        return df
+
+    def _trim_strings(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Trim whitespace from string columns."""
+        string_cols = df.select_dtypes(include=['object']).columns
+        for col in string_cols:
+            if col in self.schema:
+                df[col] = df[col].astype(str).str.strip()
         return df
 
     def _handle_missing_values(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -68,6 +77,24 @@ class DataCleaningPipeline:
                         df = df.dropna(subset=[column])
                 except Exception as e:
                     self.logger.error(f"Type conversion error for {column}: {e}")
+        return df
+
+    def _fix_common_issues(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Fix common issues like negative ages or malformed emails."""
+        for column, rules in self.schema.items():
+            if column in df.columns:
+                if column == 'age' and rules.get('fix_negative', False):
+                    negative_count = (df[column] < 0).sum()
+                    if negative_count > 0:
+                        df.loc[df[column] < 0, column] = -df.loc[df[column] < 0, column]
+                        self.errors.append(f"Fixed {negative_count} negative {column} values by taking absolute")
+                if column == 'email':
+                    # Basic fix: replace @@ with @
+                    initial_emails = df[column].copy()
+                    df[column] = df[column].str.replace(r'@@', '@', regex=True)
+                    fixed_count = (initial_emails.str.contains('@@', na=False) & ~df[column].str.contains('@@', na=False)).sum()
+                    if fixed_count > 0:
+                        self.errors.append(f"Fixed {fixed_count} @@ in {column}")
         return df
 
     def _apply_constraints(self, df: pd.DataFrame) -> pd.DataFrame:
